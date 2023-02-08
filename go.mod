@@ -25,6 +25,7 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/dylhunn/dragontoothmg v0.0.0-20220917014754-e79413b50d93 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/lib/pq v1.10.7
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect

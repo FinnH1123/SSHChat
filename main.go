@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/FinnH1123/SSHChat/server"
+	_ "github.com/lib/pq"
 )
 
 var (
