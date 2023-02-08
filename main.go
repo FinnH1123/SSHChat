@@ -14,7 +14,7 @@ import (
 var (
 	host string = "0.0.0.0"
 	port int    = 23234
-	key  string = "/home/finn/projects/SSHChat/.ssh_ed25519"
+	key  string = ""
 )
 
 func main() {

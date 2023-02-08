@@ -2,8 +2,10 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/maaslalani/gambit/style"
@@ -21,19 +23,30 @@ type SharedChat struct {
 	messages []Message
 	inputBox textinput.Model
 	typing   bool
+	list     list.Model
 	sync     chan tea.Msg
 }
 
+func (m Message) FilterValue() string { return m.content }
+func (m Message) Title() string       { return fmt.Sprintf("%s: %s", m.sender, m.content) }
+func (m Message) Description() string { return "" }
 func NewSharedChat(u *User, sync chan tea.Msg) *SharedChat {
 	input := textinput.New()
 	input.CharLimit = 120
 	input.Width = 30
 	input.Prompt = ""
+	msgs, err := GetRoomMessages(u.room.db, u.room.id)
+	if err != nil {
+		log.Printf("failed to get msgs: %v\n", err)
+	}
+
+	list := list.New(msgs, list.NewDefaultDelegate(), 0, 0)
 	r := &SharedChat{
 		user:     u,
 		sync:     sync,
 		typing:   true,
 		inputBox: input,
+		list:     list,
 	}
 	return r
 }
@@ -59,7 +72,12 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if r.typing {
 				if r.inputBox.Value() != "" {
 					r.typing = false
-					r.user.room.SendMsg(Message{content: r.inputBox.Value(), sender: r.user.session.User()})
+					msg := Message{content: r.inputBox.Value(), sender: r.user.session.User()}
+					r.user.room.SendMsg(msg)
+					_, err := CreateMessage(r.user.room.db, msg, r.user.room.id)
+					if err != nil {
+						log.Printf("failed to create msg: %v\n", err)
+					}
 					r.inputBox.SetValue("")
 					r.typing = true
 				}
@@ -90,14 +108,14 @@ func (r *SharedChat) View() string {
 	s.WriteRune('\n')
 	s.WriteString(style.Faint(fmt.Sprintf("In room %s as %s", r.user.room.id, r.user.session.User())))
 	s.WriteRune('\n')
-	s.WriteRune('\n')
-	a := len(r.messages)
-	if a < 10 {
-		a = 10
-	}
-	for i := (a - 10); i < len(r.messages); i++ {
-		s.WriteString(fmt.Sprintf("%s: %s\n\n", r.messages[i].sender, r.messages[i].content))
-	}
+	s.WriteString(r.list.View())
+	// a := len(r.messages)
+	// if a < 10 {
+	// 	a = 10
+	// }
+	// for i := (a - 10); i < len(r.messages); i++ {
+	// 	s.WriteString(fmt.Sprintf("%s: %s\n\n", r.messages[i].sender, r.messages[i].content))
+	// }
 	s.WriteRune('\n')
 	s.WriteRune('\n')
 	s.WriteString(fmt.Sprintf("Enter your message: %s", r.inputBox.View()))
