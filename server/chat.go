@@ -5,7 +5,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/maaslalani/gambit/style"
@@ -21,15 +20,12 @@ type Message struct {
 type SharedChat struct {
 	user     *User
 	messages []Message
+	offset   int
 	inputBox textinput.Model
 	typing   bool
-	list     list.Model
 	sync     chan tea.Msg
 }
 
-func (m Message) FilterValue() string { return m.content }
-func (m Message) Title() string       { return fmt.Sprintf("%s: %s", m.sender, m.content) }
-func (m Message) Description() string { return "" }
 func NewSharedChat(u *User, sync chan tea.Msg) *SharedChat {
 	input := textinput.New()
 	input.CharLimit = 120
@@ -40,13 +36,13 @@ func NewSharedChat(u *User, sync chan tea.Msg) *SharedChat {
 		log.Printf("failed to get msgs: %v\n", err)
 	}
 
-	list := list.New(msgs, list.NewDefaultDelegate(), 0, 0)
 	r := &SharedChat{
 		user:     u,
 		sync:     sync,
 		typing:   true,
+		offset:   0,
 		inputBox: input,
-		list:     list,
+		messages: msgs,
 	}
 	return r
 }
@@ -68,6 +64,16 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			r.user.Close()
+		case "up":
+			r.offset++
+			if r.offset >= len(r.messages)-9 {
+				r.offset = len(r.messages) - 9
+			}
+		case "down":
+			r.offset--
+			if r.offset < 0 {
+				r.offset = 0
+			}
 		case "enter":
 			if r.typing {
 				if r.inputBox.Value() != "" {
@@ -104,18 +110,19 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (r *SharedChat) View() string {
 	s := strings.Builder{}
-
 	s.WriteRune('\n')
 	s.WriteString(style.Faint(fmt.Sprintf("In room %s as %s", r.user.room.id, r.user.session.User())))
 	s.WriteRune('\n')
-	s.WriteString(r.list.View())
-	// a := len(r.messages)
-	// if a < 10 {
-	// 	a = 10
-	// }
-	// for i := (a - 10); i < len(r.messages); i++ {
-	// 	s.WriteString(fmt.Sprintf("%s: %s\n\n", r.messages[i].sender, r.messages[i].content))
-	// }
+	s.WriteRune('\n')
+	a := len(r.messages) - r.offset
+	b := len(r.messages) - r.offset
+	if len(r.messages) < 9 || a < 9 {
+		a = 9
+		b = 9
+	}
+	for i := (a - 9); i < b; i++ {
+		s.WriteString(fmt.Sprintf("%s: %s\n\n", r.messages[i].sender, r.messages[i].content))
+	}
 	s.WriteRune('\n')
 	s.WriteRune('\n')
 	s.WriteString(fmt.Sprintf("Enter your message: %s", r.inputBox.View()))

@@ -8,6 +8,7 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/FinnH1123/SSHChat/config"
 	"github.com/charmbracelet/wish"
 	"github.com/gliderlabs/ssh"
 )
@@ -30,6 +31,7 @@ type Server struct {
 
 // NewServer creates a new server.
 func NewServer(keyPath, host string, port int) (*Server, error) {
+	config.Setup()
 	db, err := InitialiseDB()
 	if err != nil {
 		log.Fatalf("failed to init db: %v", err)
