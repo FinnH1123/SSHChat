@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/FinnH1123/SSHChat/config"
 	"github.com/charmbracelet/wish"
 	"github.com/gliderlabs/ssh"
 )
@@ -16,22 +18,29 @@ type PublicKey struct {
 }
 
 func (pk PublicKey) String() string {
-	return fmt.Sprintf("%s", gossh.MarshalAuthorizedKey(pk.key))
+	return fmt.Sprint(gossh.MarshalAuthorizedKey(pk.key))
 }
 
 type Server struct {
 	host  string
 	port  int
+	db    *sql.DB
 	srv   *ssh.Server
 	rooms map[string]*Room
 }
 
 // NewServer creates a new server.
 func NewServer(keyPath, host string, port int) (*Server, error) {
+	config.Setup()
+	db, err := InitialiseDB()
+	if err != nil {
+		log.Fatalf("failed to init db: %v", err)
+	}
 	s := &Server{
 		host:  host,
 		port:  port,
 		rooms: make(map[string]*Room),
+		db:    db,
 	}
 	ws, err := wish.NewServer(
 		wish.WithPublicKeyAuth(publicKeyHandler),
@@ -60,10 +69,6 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-func passwordHandler(ctx ssh.Context, password string) bool {
-	return true
-}
-
 func publicKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
 	return true
 }
@@ -85,7 +90,7 @@ func (s *Server) NewRoom(id string) *Room {
 		close(finish)
 	}()
 
-	room := NewRoom(id, finish)
+	room := NewRoom(id, finish, s.db)
 	s.rooms[id] = room
 	return room
 }

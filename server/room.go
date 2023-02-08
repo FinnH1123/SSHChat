@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 
@@ -12,16 +13,18 @@ type Room struct {
 	id     string
 	users  map[string]*User
 	sync   chan tea.Msg
+	db     *sql.DB
 	done   chan struct{}
 	finish chan string
 }
 
-func NewRoom(id string, finish chan string) *Room {
+func NewRoom(id string, finish chan string, db *sql.DB) *Room {
 	s := make(chan tea.Msg)
 	r := &Room{
 		id:     id,
 		users:  make(map[string]*User, 0),
 		sync:   s,
+		db:     db,
 		done:   make(chan struct{}, 1),
 		finish: finish,
 	}

@@ -13,6 +13,8 @@ require (
 	golang.org/x/crypto v0.3.0
 )
 
+require github.com/sahilm/fuzzy v0.1.0 // indirect
+
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -23,6 +25,7 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/dylhunn/dragontoothmg v0.0.0-20220917014754-e79413b50d93 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/lib/pq v1.10.7
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
@@ -36,4 +39,5 @@ require (
 	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/term v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )

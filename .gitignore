@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-
+data/config.yml
 # Test binary, built with `go test -c`
 *.test
 
@@ -12,5 +12,7 @@
 *.out
 
 .ssh_*
+_ed25519*
+*.pub
 # Dependency directories (remove the comment below to include it)
 # vendor/

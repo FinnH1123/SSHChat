@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -19,6 +20,7 @@ type Message struct {
 type SharedChat struct {
 	user     *User
 	messages []Message
+	offset   int
 	inputBox textinput.Model
 	typing   bool
 	sync     chan tea.Msg
@@ -29,11 +31,18 @@ func NewSharedChat(u *User, sync chan tea.Msg) *SharedChat {
 	input.CharLimit = 120
 	input.Width = 30
 	input.Prompt = ""
+	msgs, err := GetRoomMessages(u.room.db, u.room.id)
+	if err != nil {
+		log.Printf("failed to get msgs: %v\n", err)
+	}
+
 	r := &SharedChat{
 		user:     u,
 		sync:     sync,
 		typing:   true,
+		offset:   0,
 		inputBox: input,
+		messages: msgs,
 	}
 	return r
 }
@@ -55,11 +64,26 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			r.user.Close()
+		case "up":
+			r.offset++
+			if r.offset >= len(r.messages)-9 {
+				r.offset = len(r.messages) - 9
+			}
+		case "down":
+			r.offset--
+			if r.offset < 0 {
+				r.offset = 0
+			}
 		case "enter":
 			if r.typing {
 				if r.inputBox.Value() != "" {
 					r.typing = false
-					r.user.room.SendMsg(Message{content: r.inputBox.Value(), sender: r.user.session.User()})
+					msg := Message{content: r.inputBox.Value(), sender: r.user.session.User()}
+					r.user.room.SendMsg(msg)
+					_, err := CreateMessage(r.user.room.db, msg, r.user.room.id)
+					if err != nil {
+						log.Printf("failed to create msg: %v\n", err)
+					}
 					r.inputBox.SetValue("")
 					r.typing = true
 				}
@@ -86,16 +110,17 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (r *SharedChat) View() string {
 	s := strings.Builder{}
-
 	s.WriteRune('\n')
 	s.WriteString(style.Faint(fmt.Sprintf("In room %s as %s", r.user.room.id, r.user.session.User())))
 	s.WriteRune('\n')
 	s.WriteRune('\n')
-	a := len(r.messages)
-	if a < 10 {
-		a = 10
+	a := len(r.messages) - r.offset
+	b := len(r.messages) - r.offset
+	if len(r.messages) < 9 || a < 9 {
+		a = 9
+		b = 9
 	}
-	for i := (a - 10); i < len(r.messages); i++ {
+	for i := (a - 9); i < b; i++ {
 		s.WriteString(fmt.Sprintf("%s: %s\n\n", r.messages[i].sender, r.messages[i].content))
 	}
 	s.WriteRune('\n')
