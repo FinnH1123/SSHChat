@@ -11,6 +11,7 @@ import (
 
 type Room struct {
 	id     string
+	server *Server
 	users  map[string]*User
 	sync   chan tea.Msg
 	db     *sql.DB
@@ -18,12 +19,14 @@ type Room struct {
 	finish chan string
 }
 
-func NewRoom(id string, finish chan string, db *sql.DB) *Room {
+func NewRoom(id string, finish chan string, db *sql.DB, serv *Server) *Room {
 	s := make(chan tea.Msg)
+
 	r := &Room{
 		id:     id,
 		users:  make(map[string]*User, 0),
 		sync:   s,
+		server: serv,
 		db:     db,
 		done:   make(chan struct{}, 1),
 		finish: finish,
@@ -54,22 +57,22 @@ func (r *Room) SendMsg(m tea.Msg) {
 }
 
 func (r *Room) MakeUser(s ssh.Session) *User {
-	pl := &User{
+	user := &User{
 		room:    r,
 		session: s,
 		key:     PublicKey{key: s.PublicKey()},
 	}
-	m := NewSharedChat(pl, r.sync)
-	p := tea.NewProgram(
-		m,
+	model := NewSharedChat(user, r.sync)
+	prog := tea.NewProgram(
+		model,
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 		tea.WithInput(s),
 		tea.WithOutput(s),
 	)
-	pl.program = p
-	pl.chat = m
-	return pl
+	user.program = prog
+	user.chat = model
+	return user
 }
 
 func (r *Room) AddUser(s ssh.Session) (*User, error) {

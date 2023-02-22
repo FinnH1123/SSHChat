@@ -7,11 +7,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/maaslalani/gambit/style"
 )
 
 type NoteMsg string
-
+type UserMsg string
 type Message struct {
 	content string
 	sender  string
@@ -53,14 +52,22 @@ func (r *SharedChat) Init() tea.Cmd {
 
 func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case Message:
 		r.messages = append(r.messages, msg)
 	case NoteMsg:
+		fmt.Println(msg)
+		r.messages = append(r.messages, Message{sender: "server", content: string(msg)})
+		return r, nil
+
+	case UserMsg:
+		fmt.Println(msg)
 		r.messages = append(r.messages, Message{sender: "server", content: string(msg)})
 		return r, nil
 
 	case tea.KeyMsg:
+
 		switch msg.String() {
 		case "ctrl+c":
 			r.user.Close()
@@ -76,7 +83,29 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			if r.typing {
-				if r.inputBox.Value() != "" {
+
+				if len(r.inputBox.Value()) > 2 && strings.TrimSpace(r.inputBox.Value()[:3]) == "/c" {
+					if strings.TrimSpace(r.inputBox.Value()[2:]) != "" {
+						fmt.Println(r.inputBox.Value())
+						room := strings.TrimLeft(r.inputBox.Value()[3:], " ")
+						index := strings.Index(room, " ")
+						if index == -1 {
+							err := r.user.room.server.SwitchRoom(room, r.user)
+							if err != nil {
+								r.messages = append(r.messages, Message{sender: "server", content: err.Error()})
+							}
+							return r, nil
+
+						} else if strings.TrimRight(room, " ") == room[:index] {
+							err := r.user.room.server.SwitchRoom(room, r.user)
+							if err != nil {
+								r.messages = append(r.messages, Message{sender: "server", content: err.Error()})
+							}
+							return r, nil
+						}
+
+					}
+				} else if r.inputBox.Value() != "" {
 					r.typing = false
 					msg := Message{content: r.inputBox.Value(), sender: r.user.session.User()}
 					r.user.room.SendMsg(msg)
@@ -94,9 +123,9 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		}
 
-		if r.typing {
-			r.inputBox.Focus()
-		}
+		// if r.typing {
+		// 	r.inputBox.Focus()
+		// }
 	}
 	if r.typing {
 		var (
@@ -111,12 +140,15 @@ func (r *SharedChat) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (r *SharedChat) View() string {
 	s := strings.Builder{}
 	s.WriteRune('\n')
-	s.WriteString(style.Faint(fmt.Sprintf("In room %s as %s", r.user.room.id, r.user.session.User())))
+	s.WriteString((fmt.Sprintf("In room %s as %s", r.user.room.id, r.user.session.User())))
 	s.WriteRune('\n')
 	s.WriteRune('\n')
 	a := len(r.messages) - r.offset
 	b := len(r.messages) - r.offset
-	if len(r.messages) < 9 || a < 9 {
+	if len(r.messages) < 9 {
+		a = 9
+		b = len(r.messages)
+	} else if a < 9 {
 		a = 9
 		b = 9
 	}
