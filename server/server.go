@@ -9,6 +9,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/FinnH1123/SSHChat/config"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/wish"
 	"github.com/gliderlabs/ssh"
 )
@@ -90,7 +91,25 @@ func (s *Server) NewRoom(id string) *Room {
 		close(finish)
 	}()
 
-	room := NewRoom(id, finish, s.db)
+	room := NewRoom(id, finish, s.db, s)
 	s.rooms[id] = room
 	return room
+}
+
+func (s *Server) SwitchRoom(newId string, user *User) error {
+	room := s.FindRoom(newId)
+	if room == nil {
+		room = s.NewRoom(newId)
+	}
+	if room.users[user.key.String()] != nil {
+		return fmt.Errorf("%s", "publickey already in that room")
+	}
+	user.room.SendMsg(NoteMsg(fmt.Sprintf("%s has left the room", user.session.User())))
+	delete(user.room.users, user.key.String())
+	user.program.Kill()
+	user = room.MakeUser(user.session)
+	room.users[user.key.String()] = user
+	user.StartChat()
+	user.Send(tea.KeyMsg{Type: 1, Runes: []int32{2}, Alt: true})
+	return nil
 }
